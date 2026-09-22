@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: public
+    description: Tables written directly by the Python pipeline (ingestion/processing/database layers).
+    tables:
+      - name: papers
+      - name: authors
+      - name: paper_authors
+      - name: categories
+      - name: paper_categories
+      - name: sources
+      - name: paper_sources
+      - name: citations
+      - name: llm_enrichments
+      - name: research_jobs

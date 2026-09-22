@@ -1,0 +1,101 @@
+# ============================================================
+# Predefined research categories.
+# These power the Research page category selector and are used
+# by processing/normalizer.py to map each source's own category
+# system into this common internal vocabulary.
+#
+# arxiv_codes            -> arXiv taxonomy codes (https://arxiv.org/category_taxonomy)
+# openalex_concepts       -> OpenAlex concept display names (matched case-insensitively)
+# semantic_scholar_fields -> Semantic Scholar "fieldsOfStudy" values
+# keywords                -> free-text hints used as a last-resort fallback matcher
+# ============================================================
+
+categories:
+  - id: artificial_intelligence
+    label: Artificial Intelligence
+    arxiv_codes: ["cs.AI"]
+    openalex_concepts: ["Artificial intelligence"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["artificial intelligence", "ai agent", "ai system"]
+
+  - id: machine_learning
+    label: Machine Learning
+    arxiv_codes: ["cs.LG", "stat.ML"]
+    openalex_concepts: ["Machine learning"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["machine learning", "deep learning", "neural network"]
+
+  - id: natural_language_processing
+    label: Natural Language Processing
+    arxiv_codes: ["cs.CL"]
+    openalex_concepts: ["Natural language processing"]
+    semantic_scholar_fields: ["Computer Science", "Linguistics"]
+    keywords: ["natural language processing", "nlp", "language model"]
+
+  - id: computer_vision
+    label: Computer Vision
+    arxiv_codes: ["cs.CV"]
+    openalex_concepts: ["Computer vision"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["computer vision", "image recognition", "object detection"]
+
+  - id: cybersecurity
+    label: Cybersecurity
+    arxiv_codes: ["cs.CR"]
+    openalex_concepts: ["Computer security"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["cybersecurity", "network security", "information security"]
+
+  - id: data_science
+    label: Data Science
+    arxiv_codes: ["cs.DB", "stat.AP"]
+    openalex_concepts: ["Data science"]
+    semantic_scholar_fields: ["Computer Science", "Mathematics"]
+    keywords: ["data science", "big data", "data mining"]
+
+  - id: robotics
+    label: Robotics
+    arxiv_codes: ["cs.RO"]
+    openalex_concepts: ["Robotics" ]
+    semantic_scholar_fields: ["Computer Science", "Engineering"]
+    keywords: ["robotics", "autonomous robot", "robot control"]
+
+  - id: cloud_computing
+    label: Cloud Computing
+    arxiv_codes: ["cs.DC"]
+    openalex_concepts: ["Cloud computing", "Distributed computing"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["cloud computing", "distributed systems", "edge computing"]
+
+  - id: quantum_computing
+    label: Quantum Computing
+    arxiv_codes: ["quant-ph"]
+    openalex_concepts: ["Quantum computer", "Quantum information"]
+    semantic_scholar_fields: ["Physics", "Computer Science"]
+    keywords: ["quantum computing", "quantum algorithm", "qubit"]
+
+  - id: software_engineering
+    label: Software Engineering
+    arxiv_codes: ["cs.SE"]
+    openalex_concepts: ["Software engineering"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["software engineering", "software testing", "devops"]
+
+  - id: information_retrieval
+    label: Information Retrieval
+    arxiv_codes: ["cs.IR"]
+    openalex_concepts: ["Information retrieval"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["information retrieval", "search engine", "recommender system"]
+
+  - id: human_computer_interaction
+    label: Human Computer Interaction
+    arxiv_codes: ["cs.HC"]
+    openalex_concepts: ["Human\u2013computer interaction"]
+    semantic_scholar_fields: ["Computer Science"]
+    keywords: ["human computer interaction", "hci", "usability"]
+
+# Fallback bucket used when a paper cannot be mapped to any category above.
+uncategorized:
+  id: uncategorized
+  label: Uncategorized

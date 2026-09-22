@@ -1,0 +1,24 @@
+# ============================================================
+# Core application dependencies (Streamlit app + pipeline + dbt)
+# Installed inside the "app" Docker image.
+# Kept deliberately light to run comfortably on an 8GB RAM machine.
+# ============================================================
+
+streamlit==1.38.0
+psycopg2-binary==2.9.9
+pandas==2.2.2
+PyYAML==6.0.2
+python-dotenv==1.0.1
+requests==2.32.3
+plotly==5.24.1
+python-dateutil==2.9.0.post0
+tenacity==8.5.0
+reportlab==4.2.5
+
+# dbt (data transformation) - runs inside the app container
+dbt-core==1.8.7
+dbt-postgres==1.8.2
+
+# Testing
+pytest==8.3.3
+pytest-mock==3.14.0

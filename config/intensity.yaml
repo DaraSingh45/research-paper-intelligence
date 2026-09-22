@@ -1,0 +1,85 @@
+# ============================================================
+# Search intensity presets.
+# Loaded by pipeline/orchestrator.py via config/loader.py so that
+# NONE of these numbers are hard-coded anywhere else in the project.
+# ============================================================
+
+intensity:
+  quick:
+    label: Quick
+    description: Fast exploratory search across a small number of results.
+    max_results_per_source: 100
+    page_size: 25
+    max_pages: 4
+    dedup_strategy: basic          # doi + external_id + exact title only
+    enable_fuzzy_dedup: false
+    analytics_level: basic
+    enable_citation_analysis: false
+    allow_llm: false
+
+  standard:
+    label: Standard
+    description: Balanced search with full cleaning, dedup and analytics.
+    max_results_per_source: 500
+    page_size: 50
+    max_pages: 10
+    dedup_strategy: full           # + fuzzy title matching (flag only, no auto-merge)
+    enable_fuzzy_dedup: true
+    fuzzy_title_threshold: 0.92
+    analytics_level: full
+    enable_citation_analysis: false
+    allow_llm: true
+
+  deep:
+    label: Deep
+    description: Thorough search with strict dedup and advanced analytics.
+    max_results_per_source: 2000
+    page_size: 100
+    max_pages: 20
+    dedup_strategy: strict
+    enable_fuzzy_dedup: true
+    fuzzy_title_threshold: 0.90
+    analytics_level: advanced
+    enable_citation_analysis: true
+    allow_llm: true
+
+default_intensity: standard
+
+# Per-source network behaviour. Applied by ingestion/base.py.
+# requests_per_second is intentionally conservative to stay within each
+# free API's published rate limits without needing an API key.
+sources:
+  arxiv:
+    enabled: true
+    requests_per_second: 0.33      # ~1 request per 3 seconds
+    timeout_seconds: 30
+    max_retries: 3
+    retry_backoff_seconds: 2
+
+  openalex:
+    enabled: true
+    requests_per_second: 3
+    timeout_seconds: 30
+    max_retries: 3
+    retry_backoff_seconds: 1
+
+  semantic_scholar:
+    enabled: true
+    requests_per_second: 0.5
+    timeout_seconds: 30
+    max_retries: 5
+    retry_backoff_seconds: 5
+
+  crossref:
+    enabled: true
+    requests_per_second: 2
+    timeout_seconds: 30
+    max_retries: 3
+    retry_backoff_seconds: 1
+
+# LLM batching. Keeps the pipeline from sending everything to Ollama at once
+# (important on constrained RAM/CPU machines).
+llm:
+  batch_size: 5
+  max_retries_per_paper: 2
+  request_timeout_seconds: 120

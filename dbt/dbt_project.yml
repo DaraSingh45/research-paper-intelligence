@@ -1,0 +1,18 @@
+name: 'research_paper_intelligence'
+version: '1.0.0'
+config-version: 2
+
+profile: 'research_paper_intelligence'
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  research_paper_intelligence:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

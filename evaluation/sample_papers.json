@@ -1,0 +1,27 @@
+[
+  {
+    "id": "eval-001",
+    "title": "Attention Is All You Need",
+    "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+  },
+  {
+    "id": "eval-002",
+    "title": "Deep Residual Learning for Image Recognition",
+    "abstract": "Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously, reformulating the layers as learning residual functions with reference to the layer inputs."
+  },
+  {
+    "id": "eval-003",
+    "title": "A Survey of Quantum Error Correction Codes",
+    "abstract": "Quantum computers are highly susceptible to noise and decoherence. This survey reviews the major families of quantum error correction codes, including surface codes and stabilizer codes, and discusses their practical implementation challenges."
+  },
+  {
+    "id": "eval-004",
+    "title": "Federated Learning for Mobile Keyboard Prediction",
+    "abstract": "We describe a system for training a recurrent neural network language model for next-word prediction in a mobile keyboard using federated learning, in which model training no longer requires user data to leave the device."
+  },
+  {
+    "id": "eval-005",
+    "title": "A Taxonomy of Human-Robot Interaction Failures",
+    "abstract": "As robots increasingly operate alongside humans, understanding how and why human-robot interactions fail becomes critical. We propose a taxonomy of interaction failures spanning technical, social, and environmental causes."
+  }
+]

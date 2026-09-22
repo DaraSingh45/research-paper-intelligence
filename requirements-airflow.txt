@@ -1,0 +1,11 @@
+# ============================================================
+# Extra requirements layered onto the official Airflow image.
+# Only needed if you run the optional Airflow profile.
+# Installed via _PIP_ADDITIONAL_REQUIREMENTS in docker-compose.yml
+# ============================================================
+psycopg2-binary==2.9.9
+PyYAML==6.0.2
+python-dotenv==1.0.1
+requests==2.32.3
+python-dateutil==2.9.0.post0
+tenacity==8.5.0

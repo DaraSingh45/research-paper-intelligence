@@ -1,0 +1,27 @@
+[
+  {
+    "id": "eval-001",
+    "expected_research_area": "Natural Language Processing",
+    "expected_topics": ["transformers", "attention mechanism", "sequence modeling"]
+  },
+  {
+    "id": "eval-002",
+    "expected_research_area": "Computer Vision",
+    "expected_topics": ["image recognition", "deep learning", "residual networks"]
+  },
+  {
+    "id": "eval-003",
+    "expected_research_area": "Quantum Computing",
+    "expected_topics": ["quantum error correction", "quantum computing"]
+  },
+  {
+    "id": "eval-004",
+    "expected_research_area": "Machine Learning",
+    "expected_topics": ["federated learning", "language models", "privacy"]
+  },
+  {
+    "id": "eval-005",
+    "expected_research_area": "Human Computer Interaction",
+    "expected_topics": ["human-robot interaction", "robotics", "failure analysis"]
+  }
+]

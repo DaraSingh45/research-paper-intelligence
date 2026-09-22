@@ -1,0 +1,108 @@
+# ============================================================
+# Research Paper Intelligence - Docker Compose
+#
+# Default (RAM-friendly) startup:
+#   docker compose up --build
+#   -> starts PostgreSQL + the Streamlit app only (~1-1.5GB RAM total).
+#
+# Optional Airflow (recurring/scheduled searches):
+#   docker compose --profile airflow up --build
+#
+# Optional containerized Ollama (only if you don't want to install Ollama
+# natively on your host -- running it natively is recommended instead,
+# see README "Local LLM setup"):
+#   docker compose --profile llm-docker up --build
+#
+# You can combine profiles: docker compose --profile airflow --profile llm-docker up
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rpi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-research_papers}
+      POSTGRES_USER: ${POSTGRES_USER:-research_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_please}
+    # No "ports:" mapping here on purpose: the app reaches this container
+    # over Docker's internal network as "postgres:5432" and never needs a
+    # host port, so this can never collide with anything already running
+    # on your machine (a common issue when a native Postgres install or
+    # another project is already using 5432). If you want to connect from
+    # a tool on your host machine (pgAdmin, local psql, etc.), uncomment:
+    # ports:
+    #   - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-research_user} -d ${POSTGRES_DB:-research_papers}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rpi_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+      - app_data:/app/data
+    mem_limit: 1g
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: rpi_airflow
+    profiles: ["airflow"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      PYTHONPATH: /opt/airflow/project
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
+      # Keep this in sync with requirements-airflow.txt. Installed at container
+      # startup -- fine for a student project, not recommended for production.
+      _PIP_ADDITIONAL_REQUIREMENTS: "psycopg2-binary==2.9.9 PyYAML==6.0.2 python-dotenv==1.0.1 requests==2.32.3 python-dateutil==2.9.0.post0 tenacity==8.5.0"
+    volumes:
+      - .:/opt/airflow/project:ro
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - airflow_home:/opt/airflow
+    ports:
+      - "8080:8080"
+    command: standalone
+    mem_limit: 1200m
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rpi_ollama
+    profiles: ["llm-docker"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    mem_limit: 3g
+
+volumes:
+  pgdata:
+  app_data:
+  airflow_home:
+  ollama_models:

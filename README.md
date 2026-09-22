@@ -413,19 +413,3 @@ dbt looks for `dbt/profiles.yml`; copy `dbt/profiles.yml.example` to
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-
-<img width="1354" height="316" alt="image" src="https://github.com/user-attachments/assets/8ac31e1a-bbd3-4d80-85e2-4735228e0f55" />
-<img width="1365" height="265" alt="image" src="https://github.com/user-attachments/assets/34b35671-b98d-4cca-b7dc-56ba660d8213" />
-
-<img width="1048" height="512" alt="image" src="https://github.com/user-attachments/assets/e362db0c-538a-4904-bb63-a77455620469" />
-
-<img width="1096" height="567" alt="image" src="https://github.com/user-attachments/assets/51c24e43-0789-4a26-8d53-d8962f7db990" />
-
-<img width="1087" height="374" alt="image" src="https://github.com/user-attachments/assets/aa735788-3645-4065-8a80-005716dfaf5e" />
-
-<img width="1091" height="378" alt="image" src="https://github.com/user-attachments/assets/0ed22b28-aa38-426a-853a-40cfc128c960" />
-
-<img width="1349" height="554" alt="image" src="https://github.com/user-attachments/assets/82ad9ffa-c2dd-49de-8f9e-5895fe771f80" />
-
-<img width="1126" height="286" alt="image" src="https://github.com/user-attachments/assets/c6f7898b-4aea-4b14-889a-e252092d1d6f" />

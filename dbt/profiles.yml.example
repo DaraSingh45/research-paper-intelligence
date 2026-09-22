@@ -1,0 +1,16 @@
+# Copy this file to dbt/profiles.yml (or ~/.dbt/profiles.yml) and it will
+# pick up your Postgres credentials from the same .env used by the app.
+# Nothing here needs to be edited by hand if you already filled in .env.
+research_paper_intelligence:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      user: "{{ env_var('POSTGRES_USER', 'research_user') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', '') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'research_papers') }}"
+      schema: public
+      threads: 4
+      keepalives_idle: 0
