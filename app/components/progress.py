@@ -1,45 +1,52 @@
 """
 app/components/progress.py
 
-Renders a research job's live progress (Section 12 example: job id,
-progress bar, current step) by polling the research_jobs / job_logs
-tables. Used by the Research page while a job is running and by the
-Jobs page when reopening a past job.
+Renders a research job's live progress (job id, progress bar, current
+step, counts) by polling the research_jobs / job_logs tables. Used by the
+Research page while a job is running and by the Jobs page when reopening a
+past job.
 """
 from __future__ import annotations
 
+import html
 from typing import Any, Dict
 
 import streamlit as st
 
-from app.components.style import rpi_mono, rpi_pill
+from app.components.style import rpi_mono, rpi_pill, rpi_status_pill
 from database.repositories import JobRepository
 
 SOURCE_LABELS = {
-    "arxiv": "arXiv",
     "openalex": "OpenAlex",
+    # Legacy sources -- only appear on jobs created before the switch to OpenAlex-only.
+    "arxiv": "arXiv",
     "semantic_scholar": "Semantic Scholar",
     "crossref": "Crossref",
 }
 
-STATUS_ICONS = {
-    "PENDING": "○",
-    "RUNNING": "◐",
-    "COMPLETED": "●",
-    "FAILED": "✕",
-    "CANCELLED": "–",
-}
+
+def _esc(text: object) -> str:
+    return html.escape(str(text), quote=True)
 
 
 def render_job_header(job: Dict[str, Any]) -> None:
-    icon = STATUS_ICONS.get(job["status"], "")
-    st.markdown(f"### {icon} Research job — {rpi_mono(job['id'])}", unsafe_allow_html=True)
-    st.caption(f"Status: **{job['status']}** · Intensity: **{job['intensity']}** · Triggered by: {job.get('triggered_by', 'manual')}")
+    keywords = ", ".join(job.get("keywords") or []) or job.get("title_filter") or "Research job"
+    meta = (
+        f"Job {rpi_mono(job['id'])} &nbsp;·&nbsp; {_esc(str(job.get('intensity', '')).capitalize())} search"
+        f" &nbsp;·&nbsp; Triggered {_esc(job.get('triggered_by', 'manual'))}"
+    )
+    st.markdown(
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">'
+        f'<div style="font-weight:600;font-size:1.05rem;">{_esc(keywords)}</div>'
+        f'{rpi_status_pill(job.get("status", ""))}</div>'
+        f'<div style="color:var(--rpi-text-muted);font-size:0.84rem;margin:0.35rem 0 0.9rem 0;">{meta}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_progress_bar(job: Dict[str, Any]) -> None:
     percent = int(job.get("progress_percent") or 0)
-    st.progress(percent / 100.0, text=f"{job.get('current_step') or 'Working...'} — {percent}%")
+    st.progress(percent / 100.0, text=f"{job.get('current_step') or 'Working...'} · {percent}%")
 
 
 def render_source_status(job: Dict[str, Any]) -> None:
@@ -50,7 +57,7 @@ def render_source_status(job: Dict[str, Any]) -> None:
     for source, status in source_status.items():
         label = SOURCE_LABELS.get(source, source)
         ok = status == "ok"
-        text = label if ok else f"{label} — {status}"
+        text = f"{label} connected" if ok else f"{label}: {status}"
         parts.append(rpi_pill(text, ok=ok))
     st.markdown(" ".join(parts), unsafe_allow_html=True)
 
@@ -73,12 +80,13 @@ def render_job_logs(job_id: str, limit: int = 200) -> None:
     if not logs:
         st.caption("No log entries yet.")
         return
-    with st.expander("Job logs (technical details)", expanded=False):
+    with st.expander("Technical log", expanded=False):
+        lines = []
         for log in logs:
             level = log["level"]
-            prefix = {"ERROR": "🔴", "WARNING": "🟡", "INFO": "⚪", "DEBUG": "⚫"}.get(level, "⚪")
             source = f"[{log['source']}] " if log.get("source") else ""
-            st.text(f"{prefix} {log['ts']:%H:%M:%S} {source}{log['message']}")
+            lines.append(f"{log['ts']:%H:%M:%S}  {level:<7} {source}{log['message']}")
+        st.code("\n".join(lines), language=None)
 
 
 def render_full_job_progress(job_id: str) -> Dict[str, Any]:
@@ -88,11 +96,13 @@ def render_full_job_progress(job_id: str) -> Dict[str, Any]:
     if not job:
         st.error("Job not found.")
         return {}
-    render_job_header(job)
-    render_progress_bar(job)
-    render_source_status(job)
-    render_counts(job)
-    if job.get("error_message"):
-        st.error(f"Something went wrong: {job['error_message']}")
-    render_job_logs(job_id)
+    with st.container(border=True):
+        render_job_header(job)
+        render_progress_bar(job)
+        render_source_status(job)
+        st.write("")
+        render_counts(job)
+        if job.get("error_message"):
+            st.error(f"Something went wrong: {job['error_message']}")
+        render_job_logs(job_id)
     return job

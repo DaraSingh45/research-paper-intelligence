@@ -11,6 +11,7 @@ connectors must return the same normalized paper object."
 from __future__ import annotations
 
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from typing import TypeVar
@@ -35,6 +36,49 @@ RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 class RetryableHTTPError(Exception):
     """Raised for HTTP responses that are worth retrying (rate limit / 5xx)."""
+
+    def __init__(self, message: str, status_code: int | None = None, body: str | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.body = body
+
+
+class RateLimitExhaustedError(Exception):
+    """Raised for an HTTP 429 whose Retry-After is too long to wait for
+    (e.g. a daily quota that resets hours from now). Not retried, since
+    retrying would only waste time and requests."""
+
+    def __init__(self, message: str, retry_after_seconds: int | None = None, body: str | None = None):
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+        self.body = body
+
+
+_SECRET_PARAM_RE = re.compile(r"(?i)\b(api_key|apikey|key|token|access_token)=([^&\s\"']+)")
+_BEARER_RE = re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]+")
+
+
+def redact_secrets(text: object) -> str:
+    """Masks API keys/tokens in URLs and headers so they never appear in
+    error messages, job logs or the UI."""
+    s = str(text)
+    s = _SECRET_PARAM_RE.sub(lambda m: f"{m.group(1)}=***", s)
+    return _BEARER_RE.sub(lambda m: f"{m.group(1)}***", s)
+
+
+# A 429 asking us to wait longer than this is treated as "quota exhausted".
+MAX_RETRY_AFTER_SECONDS = 60
+
+
+def _retry_after_seconds(resp: requests.Response) -> int | None:
+    header = resp.headers.get("Retry-After")
+    if header and header.strip().isdigit():
+        return int(header.strip())
+    try:
+        value = resp.json().get("retryAfter")
+        return int(value) if value is not None else None
+    except Exception:  # noqa: BLE001 - body may not be JSON
+        return None
 
 
 class RateLimiter:
@@ -89,8 +133,20 @@ class PaperSource(ABC):
             self.rate_limiter.wait()
             self.requests_made += 1
             resp = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            if resp.status_code == 429:
+                wait = _retry_after_seconds(resp)
+                if wait is not None and wait > MAX_RETRY_AFTER_SECONDS:
+                    raise RateLimitExhaustedError(
+                        f"{self.name}: rate limit exhausted (retry after {wait}s)",
+                        retry_after_seconds=wait,
+                        body=resp.text[:2000],
+                    )
             if resp.status_code in RETRYABLE_STATUS_CODES:
-                raise RetryableHTTPError(f"{self.name}: HTTP {resp.status_code} from {url}")
+                raise RetryableHTTPError(
+                    f"{self.name}: HTTP {resp.status_code} from {resp.url.split('?')[0]}",
+                    status_code=resp.status_code,
+                    body=resp.text[:2000],
+                )
             resp.raise_for_status()
             return resp
 
@@ -108,11 +164,11 @@ class PaperSource(ABC):
             result.requests_made = self.requests_made
             return result
         except Exception as exc:  # noqa: BLE001 - a source must never crash the pipeline
-            logger.exception("Unhandled error in %s connector", self.name)
+            logger.error("Unhandled error in %s connector: %s", self.name, redact_secrets(exc))
             return SourceResult(
                 source=self.name,
                 success=False,
-                error_message=f"Unexpected error: {exc}",
+                error_message=f"Unexpected error: {redact_secrets(exc)}",
                 requests_made=self.requests_made,
                 elapsed_seconds=time.monotonic() - start,
             )

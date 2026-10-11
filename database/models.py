@@ -127,6 +127,7 @@ class SourceResult:
     error_message: Optional[str] = None
     requests_made: int = 0
     elapsed_seconds: float = 0.0
+    warnings: List[str] = field(default_factory=list)  # non-fatal notes, shown in the job log
 
 
 @dataclass

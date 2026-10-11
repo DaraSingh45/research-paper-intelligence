@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from app.components.progress import render_full_job_progress
-from app.components.style import rpi_page_header
+from app.components.style import rpi_page_header, rpi_section
 from database.repositories import JobRepository, PaperRepository, ScheduledSearchRepository
 
 
@@ -29,9 +29,9 @@ def _render_export_buttons(job_id: str) -> None:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.download_button("⬇ CSV", csv_bytes, file_name=f"{job_id}_papers.csv", mime="text/csv", use_container_width=True)
+        st.download_button("Download CSV", csv_bytes, file_name=f"{job_id}_papers.csv", mime="text/csv", use_container_width=True)
     with col2:
-        st.download_button("⬇ JSON", json_bytes, file_name=f"{job_id}_papers.json", mime="application/json", use_container_width=True)
+        st.download_button("Download JSON", json_bytes, file_name=f"{job_id}_papers.json", mime="application/json", use_container_width=True)
     with col3:
         if st.button("Generate PDF report", use_container_width=True):
             with st.spinner("Building report..."):
@@ -39,12 +39,13 @@ def _render_export_buttons(job_id: str) -> None:
 
                 pdf_bytes = generate_pdf_report(job_id)
             st.download_button(
-                "⬇ Download PDF report", pdf_bytes, file_name=f"{job_id}_report.pdf", mime="application/pdf"
+                "Download PDF report", pdf_bytes, file_name=f"{job_id}_report.pdf", mime="application/pdf",
+                use_container_width=True, type="primary",
             )
 
 
 def _render_scheduling_section() -> None:
-    st.caption("A scheduled job reuses a saved configuration and runs automatically via Airflow.")
+    rpi_section("Scheduled searches", "Re-run a saved search configuration automatically via Airflow.")
 
     schedules = ScheduledSearchRepository.list_all()
     if schedules:
@@ -106,34 +107,40 @@ def _render_history() -> None:
                 "Job ID": j["id"],
                 "Date": j["created_at"],
                 "Query": ", ".join(j.get("keywords") or []) or (j.get("title_filter") or "—"),
-                "Intensity": j["intensity"],
+                "Depth": str(j["intensity"]).capitalize(),
                 "Papers": j.get("total_unique", 0),
-                "Status": j["status"],
+                "Status": str(j["status"]).capitalize(),
             }
             for j in jobs
         ]
     )
 
+    st.caption("Select a job to see its details and export its results.")
     event = st.dataframe(
         table_df.drop(columns=["id"]),
         use_container_width=True,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
+        column_config={
+            "Date": st.column_config.DatetimeColumn("Date", format="YYYY-MM-DD HH:mm"),
+            "Query": st.column_config.TextColumn("Query", width="large"),
+        },
     )
 
     selected_rows = event.selection.rows if event and event.selection else []
     if selected_rows:
-        st.divider()
+        st.write("")
         job_id = str(table_df.iloc[selected_rows[0]]["id"])
         job = render_full_job_progress(job_id)
         if job.get("status") == "COMPLETED":
-            st.markdown("**Export**")
+            st.write("")
+            rpi_section("Export results")
             _render_export_buttons(job_id)
 
 
 def render() -> None:
-    rpi_page_header("Jobs", "Your search history, plus recurring scheduled searches.")
+    rpi_page_header("History", "Every search you have run, plus recurring scheduled searches.")
 
     tab_history, tab_scheduled = st.tabs(["History", "Scheduled searches"])
     with tab_history:

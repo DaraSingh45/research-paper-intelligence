@@ -101,6 +101,9 @@ def run_ingestion_and_storage(job_id: str) -> None:
 
         result = source.safe_search(search_config)
 
+        for note in getattr(result, "warnings", None) or []:
+            JobRepository.append_log(job_id, f"{source.name}: {note}", level="WARNING", source=source.name)
+
         if not result.success:
             # A single failing source must never crash the pipeline (Section 16).
             JobRepository.update_source_status(job_id, source.name, f"failed: {result.error_message}")

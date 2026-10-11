@@ -180,6 +180,15 @@ class TestBaseSourceResilience:
 
 
 class TestOpenAlexApiKeyHandling:
+    @pytest.fixture(autouse=True)
+    def _ignore_real_dotenv(self, monkeypatch, tmp_path):
+        # Point the connector at an empty temp .env so a developer's real
+        # .env file can't affect these tests.
+        import ingestion.openalex as oa
+
+        monkeypatch.setattr(oa, "DOTENV_PATH", tmp_path / ".env")
+        oa._dotenv_cache.update(mtime=None, value=None)
+
     def test_400_without_key_raises_actionable_hint(self, monkeypatch):
         monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
         source = OpenAlexSource()
@@ -204,6 +213,146 @@ class TestOpenAlexApiKeyHandling:
             source.search(SearchConfig(keywords=["x"]))
         assert captured_params.get("api_key") == "test-key-123"
         assert "mailto" not in captured_params
+
+    def test_key_is_read_from_dotenv_file(self, monkeypatch, tmp_path):
+        import ingestion.openalex as oa
+
+        monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
+        env_file = tmp_path / ".env"
+        env_file.write_text("POSTGRES_DB=x\nOPENALEX_API_KEY= file-key-456 \n", encoding="utf-8")
+        monkeypatch.setattr(oa, "DOTENV_PATH", env_file)
+        assert oa.get_openalex_api_key() == "file-key-456"
+
+    def test_dotenv_file_wins_over_stale_environment(self, monkeypatch, tmp_path):
+        import ingestion.openalex as oa
+
+        monkeypatch.setenv("OPENALEX_API_KEY", "")
+        env_file = tmp_path / ".env"
+        env_file.write_text("OPENALEX_API_KEY=fresh-key\n", encoding="utf-8")
+        monkeypatch.setattr(oa, "DOTENV_PATH", env_file)
+        assert oa.get_openalex_api_key() == "fresh-key"
+
+    def test_paper_url_prefers_landing_page_then_doi(self):
+        source = OpenAlexSource()
+        base = {"id": "https://openalex.org/W1", "display_name": "T", "doi": "https://doi.org/10.1/abc"}
+        with_landing = dict(base, primary_location={"landing_page_url": "https://publisher.example/abc"})
+        assert source._parse_work(with_landing).url == "https://publisher.example/abc"
+        assert source._parse_work(base).url == "https://doi.org/10.1/abc"
+        assert source._parse_work({"id": "https://openalex.org/W2", "display_name": "T"}).url == "https://openalex.org/W2"
+
+    def test_placeholder_key_counts_as_missing(self, monkeypatch):
+        monkeypatch.setenv("OPENALEX_API_KEY", " YOUR_API_KEY")
+        from ingestion.openalex import get_openalex_api_key
+
+        assert get_openalex_api_key() is None
+
+    def test_exhausted_quota_gives_clear_message(self, monkeypatch):
+        from ingestion.base import RateLimitExhaustedError
+
+        monkeypatch.delenv("OPENALEX_API_KEY", raising=False)
+        source = OpenAlexSource()
+        error = RateLimitExhaustedError("openalex: exhausted", retry_after_seconds=24526)
+        with patch.object(source, "_get", side_effect=error):
+            result = source.safe_search(SearchConfig(keywords=["x"]))
+        assert result.success is False
+        assert "API key" in result.error_message and "resets" in result.error_message
+
+    def test_429_with_long_retry_after_is_not_retried(self):
+        source = OpenAlexSource()
+        source.backoff = 0
+        resp = MagicMock(status_code=429, headers={"Retry-After": "24526"})
+        with patch("ingestion.base.requests.get", return_value=resp) as mocked:
+            from ingestion.base import RateLimitExhaustedError
+
+            with pytest.raises(RateLimitExhaustedError):
+                source._get("http://example.com")
+        assert mocked.call_count == 1
+
+
+class TestOpenAlexQueryBuilding:
+    """Guards the 2026 OpenAlex query syntax (help.openalex.org/api/searching)."""
+
+    def _params(self, **kw):
+        from datetime import date
+
+        cfg = SearchConfig(
+            keywords=kw.get("keywords", ["machine learning", "deep learning"]),
+            title_filter=kw.get("title_filter", "AI agents"),
+            authors=kw.get("authors", []),
+            categories=kw.get("categories", ["artificial_intelligence", "machine_learning"]),
+            start_date=date(2026, 10, 4),
+            end_date=date(2026, 10, 11),
+            intensity="quick",
+        )
+        return OpenAlexSource()._build_params(cfg, 25), cfg
+
+    def test_no_deprecated_or_invalid_filters(self):
+        params, _ = self._params(authors=["Yoshua Bengio"])
+        f = params["filter"]
+        assert "concepts.display_name.search" not in f
+        assert "authorships.author.display_name.search" not in f
+        assert "title.search" not in f
+        assert "|" not in f
+
+    def test_uses_documented_parameters(self):
+        params, _ = self._params(authors=["Yoshua Bengio", "Geoffrey Hinton"])
+        assert params["search"] == '"machine learning" OR "deep learning"'
+        assert params["search.title"] == "AI agents"
+        assert 'raw_author_name.search:"Yoshua Bengio" OR "Geoffrey Hinton"' in params["filter"]
+        assert 'title_abstract_keywords.search:"Artificial Intelligence" OR' in params["filter"]
+        assert "from_publication_date:2026-10-04" in params["filter"]
+
+    def test_single_keyword_is_unquoted(self):
+        params, _ = self._params(keywords=["transformers"], categories=[], title_filter=None)
+        assert params["search"] == "transformers"
+
+    def test_commas_and_quotes_cannot_break_filters(self):
+        params, _ = self._params(authors=['Smith, "John"'], categories=[], title_filter=None)
+        assert 'raw_author_name.search:"Smith John"' in params["filter"]
+
+    def test_400_retries_with_simpler_query_and_records_warning(self, monkeypatch):
+        import ingestion.openalex as oa
+
+        monkeypatch.setattr(oa, "get_openalex_api_key", lambda: "k-123")
+        source = OpenAlexSource()
+        bad = MagicMock(status_code=400)
+        bad.json.return_value = {"error": "Invalid query parameters", "message": "bad filter"}
+        ok_response = MagicMock(status_code=200)
+        ok_response.json.return_value = {"results": [{"id": "https://openalex.org/W9", "display_name": "Ok"}]}
+        calls = []
+
+        def fake_get(url, params=None, **kwargs):
+            calls.append(dict(params))
+            if len(calls) == 1:
+                raise requests.HTTPError(response=bad)
+            return ok_response
+
+        with patch.object(source, "_get", side_effect=fake_get):
+            _, cfg = self._params()
+            result = source.search(cfg)
+        assert result.success is True and len(result.papers) == 1
+        assert "sort" in calls[0] and "sort" not in calls[1]
+        assert result.warnings and "bad filter" in result.warnings[0]
+
+    def test_api_key_is_never_shown_in_errors(self, monkeypatch):
+        import ingestion.openalex as oa
+
+        monkeypatch.setattr(oa, "get_openalex_api_key", lambda: "SECRET-KEY-42")
+        source = OpenAlexSource()
+        err = requests.HTTPError(
+            "500 Server Error for url: https://api.openalex.org/works?api_key=SECRET-KEY-42&page=1"
+        )
+        with patch.object(source, "_get", side_effect=err):
+            result = source.safe_search(SearchConfig(keywords=["x"]))
+        assert result.success is False
+        assert "SECRET-KEY-42" not in (result.error_message or "")
+
+    def test_redact_secrets(self):
+        from ingestion.base import redact_secrets
+
+        text = "url?per-page=25&api_key=abc123&page=1 Authorization: Bearer abc123"
+        out = redact_secrets(text)
+        assert "abc123" not in out and "api_key=***" in out
 
 
 class TestSemanticScholarRateLimitHandling:

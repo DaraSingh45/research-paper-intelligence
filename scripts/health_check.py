@@ -89,22 +89,31 @@ def _check_http_source(url: str, name: str) -> tuple:
         return False, f"{name} API is not reachable: {exc}"
 
 
-def check_arxiv() -> tuple:
-    return _check_http_source("http://export.arxiv.org/api/query?search_query=all:test&max_results=1", "arXiv")
-
-
 def check_openalex() -> tuple:
-    return _check_http_source("https://api.openalex.org/works?per-page=1", "OpenAlex")
+    """OpenAlex is the only paper source. Uses the configured API key so the
+    check reflects what a real search will experience."""
+    from ingestion.openalex import get_openalex_api_key
 
+    api_key = get_openalex_api_key()
+    params = {"per-page": 1}
+    if api_key:
+        params["api_key"] = api_key
+    try:
+        resp = requests.get("https://api.openalex.org/works", params=params, timeout=8)
+    except requests.Timeout:
+        return False, "OpenAlex API did not respond within 8 seconds. Check your internet connection."
+    except requests.RequestException as exc:
+        return False, f"OpenAlex API is not reachable ({type(exc).__name__}). Check your internet connection."
 
-def check_semantic_scholar() -> tuple:
-    return _check_http_source(
-        "https://api.semanticscholar.org/graph/v1/paper/search?query=test&limit=1", "Semantic Scholar"
-    )
-
-
-def check_crossref() -> tuple:
-    return _check_http_source("https://api.crossref.org/works?rows=1", "Crossref")
+    if resp.status_code in (401, 403):
+        if api_key:
+            return False, f"OpenAlex rejected the API key (HTTP {resp.status_code}). Check OPENALEX_API_KEY in .env."
+        return False, "OpenAlex requires an API key. Set OPENALEX_API_KEY in .env (free at openalex.org/settings/api)."
+    if resp.status_code >= 400:
+        return False, f"OpenAlex API returned status {resp.status_code}."
+    if api_key:
+        return True, "OpenAlex API is reachable and the API key is configured."
+    return True, "OpenAlex API is reachable, but no API key is set, so only a small test quota is available."
 
 
 def check_ollama() -> tuple:
@@ -117,10 +126,7 @@ def run_all_checks() -> List[HealthResult]:
         ("PostgreSQL", check_postgres, False),
         ("dbt", check_dbt, False),
         ("Airflow", check_airflow, True),
-        ("arXiv", check_arxiv, False),
         ("OpenAlex", check_openalex, False),
-        ("Semantic Scholar", check_semantic_scholar, False),
-        ("Crossref", check_crossref, False),
         ("Ollama", check_ollama, True),
     ]
     return [_safe_check(name, fn, optional) for name, fn, optional in checks]

@@ -24,7 +24,7 @@ load_dotenv()
 
 st.set_page_config(
     page_title="Research Paper Intelligence",
-    page_icon="📚",
+    page_icon=":material/menu_book:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -55,9 +55,8 @@ def _render_setup_screen(message: str) -> None:
     from app.components.style import inject_base_styles, rpi_page_header
 
     inject_base_styles()
-    rpi_page_header("Research Paper Intelligence", "Setup")
-    st.warning("The application isn't fully set up yet.")
-    st.write(message)
+    rpi_page_header("Almost ready", "The application isn't fully set up yet.")
+    st.warning(message)
     st.markdown(
         "This usually means PostgreSQL isn't running yet, or the database schema hasn't been "
         "created. If you're running via Docker, wait a few seconds for Postgres to finish "
@@ -95,13 +94,13 @@ def main() -> None:
     from app.views import authors, dashboard, jobs, papers, search, settings, topics
 
     pages = [
-        st.Page(search.render, title="Research", icon="🔎", url_path="research", default=True),
-        st.Page(dashboard.render, title="Dashboard", icon="📊", url_path="dashboard"),
-        st.Page(papers.render, title="Papers", icon="📄", url_path="papers"),
-        st.Page(topics.render, title="Topics", icon="🏷️", url_path="topics"),
-        st.Page(authors.render, title="Authors", icon="🧑‍🔬", url_path="authors"),
-        st.Page(jobs.render, title="Jobs", icon="🗂️", url_path="jobs"),
-        st.Page(settings.render, title="Settings", icon="⚙️", url_path="settings"),
+        st.Page(search.render, title="New search", icon=":material/search:", url_path="research", default=True),
+        st.Page(papers.render, title="Papers", icon=":material/article:", url_path="papers"),
+        st.Page(dashboard.render, title="Dashboard", icon=":material/insights:", url_path="dashboard"),
+        st.Page(topics.render, title="Topics", icon=":material/sell:", url_path="topics"),
+        st.Page(authors.render, title="Authors", icon=":material/group:", url_path="authors"),
+        st.Page(jobs.render, title="History", icon=":material/history:", url_path="jobs"),
+        st.Page(settings.render, title="Settings", icon=":material/settings:", url_path="settings"),
     ]
 
     with st.sidebar:
